@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FastBag Aile Dağıtım Ağı</title>
+  
+  <!-- SEO Meta Tags -->
+  <meta name="description" content="FastBag Aile Dağıtım Ağı, aile içi hızlı malzeme paylaşımı, sipariş yönetimi ve kurye zimmet takip platformudur.">
+  <meta name="theme-color" content="#F2B705">
+  
+  <!-- Manifest & Favicon -->
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" href="icon-192.png">
+  
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- Tailwind Custom Config -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            gold: {
+              50: '#fefdf3',
+              100: '#fdfae2',
+              200: '#faf2ba',
+              300: '#f5e486',
+              400: '#efce4b',
+              500: '#F2B705', /* Primary Accent */
+              600: '#d49e04',
+              700: '#aa7e03',
+              800: '#886402',
+              900: '#5c4301',
+              950: '#3d2d01'
+            }
+          },
+          fontFamily: {
+            sans: ['Outfit', 'system-ui', '-apple-system', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+  
+  <!-- Custom CSS for specific overrides & animations -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body class="bg-slate-900 text-slate-100 min-h-screen flex flex-col justify-between selection:bg-gold-500 selection:text-slate-900 pb-20">
+
+  <!-- ==================== TOAST NOTIFICATION ==================== -->
+  <div id="toast" class="toast-container toast-hidden fixed top-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-slate-800 border border-slate-700 text-slate-100 px-6 py-4 rounded-2xl shadow-2xl max-w-sm w-[90%]">
+    <div class="flex-shrink-0 w-8 h-8 rounded-xl bg-gold-500/20 text-gold-500 flex items-center justify-center">
+      <i id="toast-icon" class="fa-solid fa-circle-info"></i>
+    </div>
+    <div class="flex-grow text-sm font-medium" id="toast-message">İşlem başarıyla tamamlandı.</div>
+  </div>
+
+  <!-- ==================== APP HEADER ==================== -->
+  <header class="glass-header sticky top-0 z-30 px-6 py-4 flex items-center justify-between">
+    <div class="flex items-center gap-3">
+      <div class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-gold-600 to-gold-400 flex items-center justify-center text-slate-950 font-extrabold text-xl shadow-lg shadow-gold-500/20">
+        <i class="fa-solid fa-bag-shopping"></i>
+      </div>
+      <div>
+        <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">FastBag</h1>
+        <p class="text-[10px] text-slate-400 uppercase tracking-widest font-semibold">Aile Dağıtım Ağı</p>
+      </div>
+    </div>
+    
+    <div class="flex items-center gap-3">
+      <!-- PWA Install Button -->
+      <button id="btn-install" class="hidden flex items-center gap-2 bg-gold-500 hover:bg-gold-600 text-slate-950 text-xs font-bold px-3 py-2 rounded-xl transition-all shadow-md shadow-gold-500/10">
+        <i class="fa-solid fa-mobile-screen-button"></i>
+        <span>Yükle</span>
+      </button>
+      
+      <!-- Current User Badge (Visible when logged in) -->
+      <div id="header-user" class="hidden flex items-center gap-3 bg-slate-800/80 border border-slate-700/50 rounded-2xl p-1.5 pr-4">
+        <img id="header-user-avatar" src="" alt="Avatar" class="w-8 h-8 rounded-xl object-cover border border-slate-600">
+        <div class="text-left">
+          <p id="header-user-name" class="text-xs font-bold text-slate-200 leading-tight">Yükleniyor...</p>
+          <p id="header-user-points" class="text-[10px] text-gold-500 font-bold leading-tight">0 Puan</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ==================== MAIN CONTENT CONTAINER ==================== -->
+  <main class="flex-grow px-6 py-6 max-w-6xl mx-auto w-full">
+    
+    <!-- HAVUZ TAB (Shopping / Materials Pool) -->
+    <section id="tab-content-pool" class="tab-pane hidden">
+      <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
+        <div>
+          <h2 id="greeting-title" class="text-2xl font-extrabold tracking-tight md:text-3xl text-white">Merhaba! 👋</h2>
+          <p class="text-sm text-slate-400">Aile havuzundaki malzemeleri inceleyebilir veya yeni sipariş oluşturabilirsiniz.</p>
+        </div>
+        
+        <!-- Admin-Only Button to Add Item -->
+        <button id="btn-admin-add-item" class="hidden flex items-center justify-center gap-2 bg-gold-500 hover:bg-gold-600 text-slate-950 px-5 py-3 rounded-2xl font-bold shadow-lg shadow-gold-500/10 transition-all text-sm self-start md:self-auto">
+          <i class="fa-solid fa-plus"></i>
+          <span>Eşya Ekle</span>
+        </button>
+      </div>
+
+      <!-- Pool Items Grid -->
+      <div id="pool-grid" class="responsive-grid">
+        <!-- Dynamic pool items render here -->
+      </div>
+      
+      <!-- Empty Pool Placeholder -->
+      <div id="pool-empty" class="hidden flex flex-col items-center justify-center py-16 text-center">
+        <div class="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center text-slate-500 mb-4 border border-slate-700">
+          <i class="fa-solid fa-box-open text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-300">Havuz Boş</h3>
+        <p class="text-sm text-slate-500 mt-1 max-w-xs">Şu anda havuzda hiçbir malzeme bulunmuyor. Yönetici (Admin) giriş yaparak malzeme ekleyebilir.</p>
+      </div>
+    </section>
+
+    <!-- SİPARİŞLER TAB (Distribution & Tracking Screen) -->
+    <section id="tab-content-orders" class="tab-pane hidden">
+      <div class="mb-8">
+        <h2 class="text-2xl font-extrabold tracking-tight text-white md:text-3xl">Sipariş Takibi</h2>
+        <p id="orders-subtitle" class="text-sm text-slate-400">Aktif ve geçmiş dağıtımların durumunu izleyin.</p>
+      </div>
+
+      <!-- Courier Only Claim Bar -->
+      <div id="courier-claim-bar" class="hidden mb-8 bg-blue-600/10 border border-blue-500/20 p-5 rounded-3xl flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center flex-shrink-0">
+            <i class="fa-solid fa-truck-ramp-box text-lg"></i>
+          </div>
+          <div>
+            <h3 class="text-sm font-bold text-blue-200">Kurye Zimmet Paneli</h3>
+            <p class="text-xs text-blue-300/80">Dağıtmak istediğiniz ürünün sipariş kodunu (Örn: FB-4921) girerek teslimatı üzerinize alabilirsiniz.</p>
+          </div>
+        </div>
+        
+        <div class="flex gap-2">
+          <input type="text" id="input-claim-code" placeholder="FB-XXXX" class="bg-slate-900 border border-slate-700 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none rounded-xl px-4 py-2 text-sm font-mono tracking-widest uppercase text-white w-full md:w-36">
+          <button id="btn-claim-order" class="bg-blue-500 hover:bg-blue-600 text-white font-bold px-5 py-2 rounded-xl text-sm transition-all flex-shrink-0">
+            Zimmetle
+          </button>
+        </div>
+      </div>
+
+      <!-- Orders List Container -->
+      <div id="orders-list" class="space-y-6">
+        <!-- Dynamic orders render here -->
+      </div>
+      
+      <!-- Empty Orders Placeholder -->
+      <div id="orders-empty" class="hidden flex flex-col items-center justify-center py-20 text-center">
+        <div class="w-16 h-16 rounded-3xl bg-slate-800 flex items-center justify-center text-slate-500 mb-4 border border-slate-700">
+          <i class="fa-solid fa-receipt text-2xl"></i>
+        </div>
+        <h3 class="text-lg font-bold text-slate-300">Aktif Sipariş Yok</h3>
+        <p class="text-sm text-slate-500 mt-1 max-w-xs" id="orders-empty-msg">Henüz sipariş verilmemiş.</p>
+      </div>
+    </section>
+
+    <!-- PROFİLİM TAB (User Profile & Market) -->
+    <section id="tab-content-profile" class="tab-pane hidden">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        
+        <!-- Profile info block -->
+        <div class="lg:col-span-1 bg-slate-800/50 border border-slate-700/50 rounded-3xl p-6 flex flex-col items-center text-center shadow-xl self-start">
+          <div class="relative mb-4">
+            <img id="profile-avatar" src="" alt="Profil Avatarı" class="w-24 h-24 rounded-3xl object-cover border-2 border-slate-700 shadow-xl">
+            <div id="profile-badges" class="absolute -bottom-2 -right-2 flex flex-col gap-1">
+              <!-- Dynamic admin/courier badges -->
+            </div>
+          </div>
+          
+          <h2 id="profile-name" class="text-xl font-extrabold text-white">Ad Soyad</h2>
+          <p id="profile-role-text" class="text-xs text-slate-400 font-medium mt-0.5">Aile Üyesi</p>
+          
+          <!-- Points Display Card -->
+          <div class="w-full mt-6 bg-slate-900/60 border border-slate-800 rounded-2xl p-4 flex flex-col items-center justify-center">
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-widest">FastClub Puanı</p>
+            <div class="flex items-center gap-2 mt-1">
+              <i class="fa-solid fa-award text-gold-500 text-2xl"></i>
+              <span id="profile-points-large" class="text-2xl font-black text-white">0</span>
+              <span class="text-sm font-bold text-gold-500">PTS</span>
+            </div>
+          </div>
+          
+          <!-- Logout Button -->
+          <button id="btn-logout" class="w-full mt-8 flex items-center justify-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 hover:border-red-500/30 px-5 py-3 rounded-2xl font-bold transition-all text-sm">
+            <i class="fa-solid fa-power-off"></i>
+            <span>Güvenli Çıkış Yap</span>
+          </button>
+        </div>
+        
+        <!-- Market and Coupons block -->
+        <div class="lg:col-span-2 space-y-8">
+          
+          <!-- FastClub Market -->
+          <div class="bg-slate-800/30 border border-slate-700/30 rounded-3xl p-6 shadow-xl">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 rounded-2xl bg-gold-500/20 text-gold-500 flex items-center justify-center">
+                <i class="fa-solid fa-shop text-lg"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">FastClub Ödül Marketi</h3>
+                <p class="text-xs text-slate-400">Puanlarınızı harcayarak ödül kuponları satın alın.</p>
+              </div>
+            </div>
+            
+            <div id="market-restricted-msg" class="hidden bg-slate-900/80 border border-slate-800 rounded-2xl p-4 text-center text-xs text-slate-400">
+              <i class="fa-solid fa-triangle-exclamation text-gold-500 mb-1 block text-lg"></i>
+              Yönetici ve kurye rolleri FastClub Market üzerinden satın alma işlemi gerçekleştiremez.
+            </div>
+            
+            <div id="market-items-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <!-- Reward Card 1: Chocolate -->
+              <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4">
+                <div class="flex gap-4">
+                  <div class="w-16 h-16 rounded-xl bg-amber-900/20 border border-amber-900/30 text-amber-500 flex items-center justify-center flex-shrink-0 text-3xl">
+                    <i class="fa-solid fa-cookie"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-sm text-white">Bedava Çikolata</h4>
+                    <p class="text-xs text-slate-400 mt-1">Kendi zevkinize uygun premium çikolata ödülü.</p>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between mt-2 pt-3 border-t border-slate-800">
+                  <div class="text-xs font-bold text-gold-500">150 Puan</div>
+                  <button onclick="buyReward('choco')" class="btn-buy-reward bg-gold-500 hover:bg-gold-600 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-all">Satın Al</button>
+                </div>
+              </div>
+              
+              <!-- Reward Card 2: VIP Priority Delivery -->
+              <div class="bg-slate-900/50 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between gap-4">
+                <div class="flex gap-4">
+                  <div class="w-16 h-16 rounded-xl bg-purple-900/20 border border-purple-900/30 text-purple-400 flex items-center justify-center flex-shrink-0 text-3xl">
+                    <i class="fa-solid fa-bolt"></i>
+                  </div>
+                  <div>
+                    <h4 class="font-bold text-sm text-white">VIP Öncelikli Dağıtım</h4>
+                    <p class="text-xs text-slate-400 mt-1">Siparişlerinizi en üst sıraya taşıyarak hızlandırın.</p>
+                  </div>
+                </div>
+                <div class="flex items-center justify-between mt-2 pt-3 border-t border-slate-800">
+                  <div class="text-xs font-bold text-gold-500">300 Puan</div>
+                  <button onclick="buyReward('vip')" class="btn-buy-reward bg-gold-500 hover:bg-gold-600 text-slate-950 text-xs font-bold px-4 py-2 rounded-xl transition-all">Satın Al</button>
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Active Coupons List -->
+          <div class="bg-slate-800/30 border border-slate-700/30 rounded-3xl p-6 shadow-xl">
+            <div class="flex items-center gap-3 mb-6">
+              <div class="w-10 h-10 rounded-2xl bg-green-500/20 text-green-400 flex items-center justify-center">
+                <i class="fa-solid fa-ticket text-lg"></i>
+              </div>
+              <div>
+                <h3 class="text-lg font-bold text-white">Aktif Ödül Kuponlarım</h3>
+                <p class="text-xs text-slate-400">Sahip olduğunuz ve henüz harcamadığınız kuponlar.</p>
+              </div>
+            </div>
+            
+            <div id="coupons-list" class="space-y-3">
+              <!-- Dynamic coupons list -->
+            </div>
+            
+            <div id="coupons-empty" class="hidden flex flex-col items-center justify-center py-8 text-center bg-slate-900/30 rounded-2xl border border-slate-800/50 border-dashed">
+              <i class="fa-solid fa-tags text-slate-600 mb-2 text-xl"></i>
+              <p class="text-xs text-slate-500">Kullanılabilir kuponunuz bulunmuyor.</p>
+            </div>
+          </div>
+          
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ==================== AUTH SCREEN OVERLAY ==================== -->
+  <div id="auth-screen" class="fixed inset-0 z-40 bg-slate-950/95 flex flex-col items-center justify-center p-6 overflow-y-auto hidden">
+    <div class="w-full max-w-xl my-auto space-y-8">
+      
+      <!-- Logo Header -->
+      <div class="text-center">
+        <div class="w-14 h-14 rounded-3xl bg-gradient-to-tr from-gold-600 to-gold-400 flex items-center justify-center text-slate-950 font-black text-2xl shadow-xl shadow-gold-500/20 mx-auto mb-4">
+          <i class="fa-solid fa-bag-shopping"></i>
+        </div>
+        <h2 class="text-2xl font-black tracking-tight text-white md:text-3xl">FastBag Aile Girişi</h2>
+        <p class="text-sm text-slate-400 mt-1">Lütfen devam etmek için aile profilinizi seçin veya yeni bir üye ekleyin.</p>
+      </div>
+      
+      <!-- Dynamic Announcement Banner -->
+      <div id="auth-banner" class="bg-gradient-to-r from-slate-800/80 to-slate-900/80 border border-slate-700/40 rounded-3xl p-6 relative overflow-hidden group shadow-lg">
+        <div class="absolute -right-8 -bottom-8 w-24 h-24 bg-gold-500/10 rounded-full blur-xl group-hover:bg-gold-500/20 transition-all duration-500"></div>
+        
+        <!-- Admin Edit Pencil Indicator -->
+        <button id="btn-edit-banner" class="hidden absolute top-4 right-4 w-8 h-8 rounded-xl bg-slate-800/90 text-slate-400 hover:text-gold-500 hover:bg-slate-700 border border-slate-700 transition-all items-center justify-center">
+          <i class="fa-solid fa-pen text-xs"></i>
+        </button>
+        
+        <span id="banner-tag" class="inline-block bg-gold-500/20 text-gold-400 text-[10px] font-extrabold px-2.5 py-1 rounded-lg uppercase tracking-wider mb-2.5">Sistem Duyurusu</span>
+        <h3 id="banner-title" class="text-base font-extrabold text-white leading-tight">Yazılım Yayında!</h3>
+        <p id="banner-desc" class="text-xs text-slate-400 mt-2 leading-relaxed">FastBag aile dağıtım ve paylaşım platformu başarıyla kuruldu. Yeni üye kaydı oluşturarak hemen deneyebilirsiniz.</p>
+      </div>
+
+      <!-- Registered Members Section -->
+      <div class="space-y-4">
+        <div class="flex items-center justify-between">
+          <h3 class="text-sm font-extrabold text-slate-300 uppercase tracking-widest">Kayıtlı Aile Üyeleri</h3>
+          <button id="btn-show-register" class="text-xs text-gold-500 hover:text-gold-400 font-bold flex items-center gap-1.5 transition-all">
+            <i class="fa-solid fa-user-plus"></i>
+            <span>Yeni Üye Kaydı</span>
+          </button>
+        </div>
+        
+        <!-- Members List -->
+        <div id="auth-members-list" class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <!-- Dynamic members card elements load here -->
+        </div>
+        
+        <!-- Empty Members Placeholder -->
+        <div id="auth-members-empty" class="hidden flex flex-col items-center justify-center py-12 bg-slate-900/50 rounded-3xl border border-slate-800 border-dashed text-center">
+          <i class="fa-solid fa-users text-slate-700 mb-2 text-2xl"></i>
+          <p class="text-sm text-slate-500 font-medium">Kayıtlı aile üyesi bulunamadı.</p>
+          <p class="text-xs text-slate-600 mt-0.5">Yukarıdaki butondan hemen yeni bir üye kaydı yapın.</p>
+        </div>
+      </div>
+
+      <!-- Special Access Buttons -->
+      <div class="pt-6 border-t border-slate-800 flex items-center justify-center gap-4">
+        <button id="btn-special-courier" class="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 px-4 py-3 rounded-2xl text-xs font-bold transition-all shadow-md">
+          <i class="fa-solid fa-shipping-fast text-blue-400"></i>
+          <span>Kurye Girişi</span>
+        </button>
+        <button id="btn-special-admin" class="flex-1 flex items-center justify-center gap-2 bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-slate-700 text-slate-300 px-4 py-3 rounded-2xl text-xs font-bold transition-all shadow-md">
+          <i class="fa-solid fa-shield-halved text-red-400"></i>
+          <span>Yönetici Girişi</span>
+        </button>
+      </div>
+      
+    </div>
+  </div>
+
+  <!-- ==================== FIXED BOTTOM NAVIGATION ==================== -->
+  <nav id="bottom-nav" class="glass-nav fixed bottom-0 left-0 right-0 z-30 h-20 px-6 flex items-center justify-around max-w-6xl mx-auto w-full rounded-t-3xl">
+    <button onclick="switchTab('pool')" id="nav-btn-pool" class="flex flex-col items-center justify-center gap-1.5 w-16 h-16 text-slate-500 hover:text-slate-300 transition-all">
+      <i class="fa-solid fa-cubes text-xl"></i>
+      <span class="text-[10px] font-bold tracking-wider">Havuz</span>
+    </button>
+    
+    <button onclick="switchTab('orders')" id="nav-btn-orders" class="flex flex-col items-center justify-center gap-1.5 w-16 h-16 text-slate-500 hover:text-slate-300 transition-all relative">
+      <i class="fa-solid fa-truck-fast text-xl"></i>
+      <span class="text-[10px] font-bold tracking-wider">Siparişler</span>
+      <div id="nav-order-badge" class="hidden absolute top-2 right-2 w-4 h-4 bg-gold-500 text-slate-950 font-black text-[9px] rounded-full flex items-center justify-center border-2 border-slate-900">
+        0
+      </div>
+    </button>
+    
+    <button onclick="switchTab('profile')" id="nav-btn-profile" class="flex flex-col items-center justify-center gap-1.5 w-16 h-16 text-slate-500 hover:text-slate-300 transition-all">
+      <i class="fa-solid fa-circle-user text-xl"></i>
+      <span class="text-[10px] font-bold tracking-wider">Profilim</span>
+    </button>
+  </nav>
+
+  <!-- ==================== MODAL OVERLAYS ==================== -->
+
+  <!-- Modal: Edit Announcement Banner (Admin Only) -->
+  <div id="modal-edit-banner" class="modal-overlay modal-hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-6">
+    <div class="modal-content bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">Duyuru Afişini Düzenle</h3>
+        <button onclick="closeModal('modal-edit-banner')" class="text-slate-500 hover:text-slate-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Afiş Etiketi</label>
+          <input type="text" id="input-banner-tag" placeholder="ÖRN: DUYURU, KAMPANYA" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Duyuru Başlığı</label>
+          <input type="text" id="input-banner-title" placeholder="Afiş Başlığı girin" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white font-semibold">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Açıklama Metni</label>
+          <textarea id="input-banner-desc" rows="3" placeholder="Detaylı duyuru açıklaması yazın..." class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white leading-relaxed resize-none"></textarea>
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-2">
+        <button onclick="closeModal('modal-edit-banner')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-sm transition-all">İptal</button>
+        <button id="btn-save-banner" class="px-5 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-sm transition-all">Kaydet</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Add Item to Pool (Admin Only) -->
+  <div id="modal-add-item" class="modal-overlay modal-hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-6">
+    <div class="modal-content bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">Havuza Malzeme Ekle</h3>
+        <button onclick="closeModal('modal-add-item')" class="text-slate-500 hover:text-slate-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Malzeme Adı</label>
+          <input type="text" id="input-item-name" placeholder="Örn: Ekmek, Süt, Meyve Sepeti" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Sanal Fiyat (FastClub Puanı / TL)</label>
+          <input type="number" id="input-item-price" placeholder="Örn: 25" min="1" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Malzeme Görseli</label>
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer bg-slate-800 border border-slate-700 hover:border-gold-500 text-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+              <i class="fa-solid fa-image"></i>
+              <span>Fotoğraf Yükle</span>
+              <input type="file" id="input-item-file" accept="image/*" class="hidden">
+            </label>
+            <span id="label-item-file-name" class="text-xs text-slate-500 italic max-w-xs truncate">Dosya seçilmedi</span>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Dosya seçilmezse Unsplash üzerinden otomatik bir ürün görseli atanacaktır.</p>
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-2">
+        <button onclick="closeModal('modal-add-item')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-sm transition-all">İptal</button>
+        <button id="btn-save-item" class="px-5 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-sm transition-all">Ekle</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: New User Registration -->
+  <div id="modal-register" class="modal-overlay modal-hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-6">
+    <div class="modal-content bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <h3 class="text-lg font-bold text-white">Yeni Aile Üyesi Kaydı</h3>
+        <button onclick="closeModal('modal-register')" class="text-slate-500 hover:text-slate-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">İsim Soyisim</label>
+          <input type="text" id="input-user-name" placeholder="Adınızı ve soyadınızı girin" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Giriş Şifresi</label>
+          <input type="password" id="input-user-password" placeholder="Rakamlardan oluşan güvenli şifre" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-gold-500 focus:ring-1 focus:ring-gold-500 outline-none text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Profil Resmi</label>
+          <div class="flex items-center gap-3">
+            <label class="cursor-pointer bg-slate-800 border border-slate-700 hover:border-gold-500 text-slate-300 px-4 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-2">
+              <i class="fa-solid fa-camera"></i>
+              <span>Görsel Yükle</span>
+              <input type="file" id="input-user-file" accept="image/*" class="hidden">
+            </label>
+            <span id="label-user-file-name" class="text-xs text-slate-500 italic max-w-xs truncate">Dosya seçilmedi</span>
+          </div>
+          <p class="text-[10px] text-slate-500 mt-1">Görsel yüklenmediği takdirde isminize özel eğlenceli bir avatar otomatik olarak atanacaktır.</p>
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-2">
+        <button onclick="closeModal('modal-register')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-sm transition-all">İptal</button>
+        <button id="btn-save-user" class="px-5 py-2.5 bg-gold-500 hover:bg-gold-600 text-slate-950 font-bold rounded-xl text-sm transition-all">Kayıt Ol & Giriş Yap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Courier Login -->
+  <div id="modal-courier-login" class="modal-overlay modal-hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-6">
+    <div class="modal-content bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-shipping-fast text-blue-500"></i>
+          <h3 class="text-lg font-bold text-white">Kurye Yetkili Girişi</h3>
+        </div>
+        <button onclick="closeModal('modal-courier-login')" class="text-slate-500 hover:text-slate-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Kurye Adı</label>
+          <input type="text" id="input-courier-name" placeholder="İsminizi girin" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-white">
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Kurye Şifresi</label>
+          <input type="password" id="input-courier-password" placeholder="Sabit kurye şifresi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-blue-500 focus:ring-1 focus:ring-blue-500 outline-none text-white">
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-2">
+        <button onclick="closeModal('modal-courier-login')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-sm transition-all">İptal</button>
+        <button id="btn-login-courier" class="px-5 py-2.5 bg-blue-500 hover:bg-blue-600 text-white font-bold rounded-xl text-sm transition-all">Giriş Yap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Admin Login -->
+  <div id="modal-admin-login" class="modal-overlay modal-hidden fixed inset-0 z-50 bg-slate-950/80 flex items-center justify-center p-6">
+    <div class="modal-content bg-slate-900 border border-slate-800 w-full max-w-md rounded-3xl p-6 shadow-2xl space-y-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center gap-2">
+          <i class="fa-solid fa-shield-halved text-red-500"></i>
+          <h3 class="text-lg font-bold text-white">Yönetici Girişi</h3>
+        </div>
+        <button onclick="closeModal('modal-admin-login')" class="text-slate-500 hover:text-slate-300 text-lg"><i class="fa-solid fa-xmark"></i></button>
+      </div>
+      
+      <div class="space-y-4">
+        <div>
+          <label class="block text-xs font-bold text-slate-400 mb-1.5">Yönetici Giriş Şifresi</label>
+          <input type="password" id="input-admin-password" placeholder="Süper yönetici giriş şifresi" class="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-sm focus:border-red-500 focus:ring-1 focus:ring-red-500 outline-none text-white">
+        </div>
+      </div>
+      
+      <div class="flex gap-3 justify-end pt-2">
+        <button onclick="closeModal('modal-admin-login')" class="px-5 py-2.5 bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold rounded-xl text-sm transition-all">İptal</button>
+        <button id="btn-login-admin" class="px-5 py-2.5 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-sm transition-all">Yönetici Girişi Yap</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
